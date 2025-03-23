@@ -98,19 +98,18 @@ stage('Deploiement en staging'){
             }
 
         }
-  stage('Deploiement en prod'){
-        environment
-        {
-        KUBECONFIG = credentials("config") // we retrieve  kubeconfig from secret file called config saved on jenkins
-        }
-            steps {
-            // Create an Approval Button with a timeout of 15minutes.
-            // this require a manuel validation in order to deploy on production environment
-                    timeout(time: 15, unit: "MINUTES") {
-                        input message: 'Do you want to deploy in production ?', ok: 'Yes'
-                    }
+stage('Deploiement en prod') {
+    environment {
+        KUBECONFIG = credentials("config")
+    }
+    steps {
+        script {
+            def userInput = input(
+                message: 'Do you want to deploy in production?',
+                parameters: [choice(name: 'Deploy', choices: 'Yes\nAbort', description: 'Select Yes to continue or Abort to stop')]
+            )
 
-                script {
+            if (userInput == 'Yes') {
                 sh '''
                 rm -Rf .kube
                 mkdir .kube
@@ -121,10 +120,10 @@ stage('Deploiement en staging'){
                 sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
                 helm upgrade --install app fastapi --values=values.yml --namespace prod
                 '''
-                }
+            } else {
+                error "Deployment Aborted by User"
             }
-
         }
-
+    }
 }
 }
